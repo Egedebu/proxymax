@@ -1,37 +1,37 @@
-
-
 const http = require("node:http");
+const express = require("express");
 const { createBareServer } = require("@tomphttp/bare-server-node");
-const fs = require("fs");
 const path = require("path");
 
-// Create an HTTP server
-const httpServer = http.createServer();
+const app = express();
+
+// Statik dosyaları sun
+app.use(express.static(path.join(__dirname, ".")));
+
+// Proxy server
 const bareServer = createBareServer("/bare/");
 
-httpServer.on("request", (req, res) => {
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+// Proxy route
+app.all("/bare/*", (req, res, next) => {
   if (bareServer.shouldRoute(req)) {
     bareServer.routeRequest(req, res);
-  } else if (req.url === "/") {
-    // Serve the index.html file when the root URL is requested
-    const indexPath = path.join(__dirname, "index.html");
-
-    fs.readFile(indexPath, "utf8", (err, data) => {
-      if (err) {
-        res.writeHead(500, { "Content-Type": "text/plain" });
-        res.end("Internal Server Error");
-      } else {
-        res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(data);
-      }
-    });
   } else {
-    res.writeHead(400, { "Content-Type": "text/plain" });
-    res.end("Not found.");
+    next();
   }
 });
 
-httpServer.on("upgrade", (req, socket, head) => {
+// Diğer tüm istekler 404
+app.use((req, res) => {
+  res.status(404).send("Not found.");
+});
+
+const server = http.createServer(app);
+
+server.on("upgrade", (req, socket, head) => {
   if (bareServer.shouldRoute(req)) {
     bareServer.routeUpgrade(req, socket, head);
   } else {
@@ -39,10 +39,6 @@ httpServer.on("upgrade", (req, socket, head) => {
   }
 });
 
-httpServer.on("listening", () => {
-  console.log("HTTP server listening");
-});
-
-httpServer.listen({
-  port: 8000,
+server.listen(process.env.PORT || 3000, () => {
+  console.log("Server running on port " + (process.env.PORT || 3000));
 });
