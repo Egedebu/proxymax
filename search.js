@@ -29,5 +29,11 @@ function search(input, template) {
 
   // Attempts to convert the input to a fully qualified URL have failed
   // Treat the input as a search query
+  
+  // FIX: Ensure template is valid, default to Google if not provided
+  if (!template || typeof template !== 'string') {
+    template = "https://www.google.com/search?q=%s";
+  }
+  
   return template.replace("%s", encodeURIComponent(input));
 }
